@@ -1,78 +1,155 @@
 using UnityEngine;
+using QuantumRealm.UI;
 
 namespace QuantumRealm.Player
 {
-    [RequireComponent(typeof(CharacterController))]
-    public class PlayerController : MonoBehaviour
+    public class PlayerCombat : MonoBehaviour
     {
-        [SerializeField] private float moveSpeed = 6f;
-        [SerializeField] private float sprintSpeed = 9f;
-        [SerializeField] private float jumpHeight = 1.5f;
-        [SerializeField] private float gravity = -20f;
-        [SerializeField] private Camera playerCamera;
-        [SerializeField] private float mouseSensitivity = 2.5f;
-        [SerializeField] private float maxLookUp = 80f;
-        [SerializeField] private float maxLookDown = -80f;
+        [Header("Combat")]
+        [SerializeField] private Camera weaponCamera;
+        [SerializeField] private float shootRange = 80f;
+        [SerializeField] private float fireRate = 0.12f;
+        [SerializeField] private int baseDamage = 20;
+        [SerializeField] private int ammoCapacity = 30;
+        [SerializeField] private LayerMask hitMask;
+        [SerializeField] private HUDController hud;
 
-        private CharacterController controller;
-        private Vector3 velocity;
-        private float xRotation;
+        private float nextShotTime;
+        private int currentAmmo;
+        private PlayerHealth playerHealth;
+        private MobileTouchController touchController;
 
-        private void Awake()
+        private void Start()
         {
-            controller = GetComponent<CharacterController>();
-            if (playerCamera == null)
+            currentAmmo = ammoCapacity;
+            playerHealth = GetComponent<PlayerHealth>();
+            touchController = GetComponent<MobileTouchController>();
+
+            if (weaponCamera == null)
             {
-                playerCamera = Camera.main;
+                weaponCamera = Camera.main;
             }
 
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            if (hud != null)
+            {
+                hud.SetAmmo(currentAmmo);
+            }
         }
 
         private void Update()
         {
-            UpdateMovement();
-            UpdateLook();
+            bool firing = Input.GetButton("Fire1");
+            if (touchController != null)
+            {
+                firing = firing || touchController.FirePressed;
+            }
+
+            if (firing && Time.time >= nextShotTime)
+            {
+                Fire();
+                nextShotTime = Time.time + fireRate;
+            }
+
+            if (Input.GetKeyDown(KeyCode.R) || (touchController != null && touchController.DashPressed))
+            {
+                Reload();
+            }
         }
 
-        private void UpdateMovement()
+        private void Fire()
         {
-            var input = new Vector3(Input.GetAxisRaw("Horizontal"), 0f, Input.GetAxisRaw("Vertical"));
-            bool sprinting = Input.GetKey(KeyCode.LeftShift);
-            float speed = sprinting ? sprintSpeed : moveSpeed;
-
-            Vector3 move = transform.TransformDirection(input.normalized);
-            controller.Move(move * speed * Time.deltaTime);
-
-            if (controller.isGrounded && velocity.y < 0f)
+            if (currentAmmo <= 0)
             {
-                velocity.y = -2f;
+                Reload();
+                return;
             }
 
-            if (Input.GetButtonDown("Jump") && controller.isGrounded)
+            currentAmmo--;
+            if (hud != null)
             {
-                velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+                hud.SetAmmo(currentAmmo);
             }
 
-            velocity.y += gravity * Time.deltaTime;
-            controller.Move(velocity * Time.deltaTime);
+            if (Physics.Raycast(weaponCamera.transform.position, weaponCamera.transform.forward, out RaycastHit hit, shootRange, hitMask))
+            {
+                var enemy = hit.collider.GetComponent<EnemyBase>();
+                if (enemy != null)
+                {
+                    enemy.TakeDamage(baseDamage);
+                }
+            }
         }
 
-        private void UpdateLook()
+        private void Reload()
         {
-            float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
-            float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
-
-            xRotation -= mouseY;
-            xRotation = Mathf.Clamp(xRotation, maxLookDown, maxLookUp);
-
-            if (playerCamera != null)
+            currentAmmo = ammoCapacity;
+            if (hud != null)
             {
-                playerCamera.transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+                hud.SetAmmo(currentAmmo);
+            }
+        }
+    }
+
+    public class EnemyBase : MonoBehaviour
+    {
+        [SerializeField] private int maxHealth = 100;
+        [SerializeField] private float damageAmount = 12f;
+        [SerializeField] private Transform target;
+        [SerializeField] private float chaseRange = 10f;
+        [SerializeField] private float attackRange = 2f;
+        [SerializeField] private float moveSpeed = 3f;
+        [SerializeField] private float attackCooldown = 1f;
+
+        private int health;
+        private float nextAttackTime;
+
+        private void Awake()
+        {
+            health = maxHealth;
+        }
+
+        private void Update()
+        {
+            if (target == null)
+            {
+                target = GameObject.FindGameObjectWithTag("Player")?.transform;
+                return;
             }
 
-            transform.Rotate(Vector3.up * mouseX);
+            float distance = Vector3.Distance(transform.position, target.position);
+            if (distance <= chaseRange)
+            {
+                Vector3 direction = (target.position - transform.position).normalized;
+                direction.y = 0f;
+
+                if (distance > attackRange)
+                {
+                    transform.position += direction * moveSpeed * Time.deltaTime;
+                }
+                else if (Time.time >= nextAttackTime)
+                {
+                    AttackPlayer();
+                    nextAttackTime = Time.time + attackCooldown;
+                }
+            }
+        }
+
+        public void TakeDamage(int amount)
+        {
+            health -= amount;
+            if (health <= 0)
+            {
+                Destroy(gameObject);
+            }
+        }
+
+        private void AttackPlayer()
+        {
+            var playerHealth = target.GetComponent<PlayerHealth>();
+            if (playerHealth != null)
+            {
+                playerHealth.Damage(damageAmount);
+            }
         }
     }
 }
