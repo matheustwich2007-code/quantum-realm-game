@@ -1,5 +1,5 @@
-using UnityEngine;
 using TMPro;
+using UnityEngine;
 
 namespace QuantumRealm.UI
 {
@@ -9,26 +9,22 @@ namespace QuantumRealm.UI
         [SerializeField] private TextMeshProUGUI ammoText;
         [SerializeField] private TextMeshProUGUI objectiveText;
         [SerializeField] private TextMeshProUGUI xpText;
-
-        private int currentHealth = 100;
-        private int currentAmmo = 30;
-        private int currentXP = 0;
+        [SerializeField] private TextMeshProUGUI waveText;
+        [SerializeField] private TextMeshProUGUI scoreText;
 
         public void SetHealth(int value)
         {
-            currentHealth = value;
             if (healthText != null)
             {
-                healthText.text = $"HP: {currentHealth}";
+                healthText.text = $"HP: {value}";
             }
         }
 
         public void SetAmmo(int value)
         {
-            currentAmmo = value;
             if (ammoText != null)
             {
-                ammoText.text = $"Ammo: {currentAmmo}";
+                ammoText.text = $"Ammo: {value}";
             }
         }
 
@@ -42,10 +38,25 @@ namespace QuantumRealm.UI
 
         public void SetExperience(int value)
         {
-            currentXP = value;
             if (xpText != null)
             {
-                xpText.text = $"XP: {currentXP}";
+                xpText.text = $"XP: {value}";
+            }
+        }
+
+        public void SetWave(int value)
+        {
+            if (waveText != null)
+            {
+                waveText.text = $"Wave: {value}";
+            }
+        }
+
+        public void SetScore(int value)
+        {
+            if (scoreText != null)
+            {
+                scoreText.text = $"Score: {value}";
             }
         }
     }

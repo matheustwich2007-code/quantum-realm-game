@@ -1,12 +1,13 @@
+using System;
 using UnityEngine;
 
 namespace QuantumRealm.Enemy
 {
     public class EnemyHealth : MonoBehaviour
     {
-        [SerializeField] private int maxHealth = 100;
-        [SerializeField] private bool destroyOnDeath = true;
+        public static event Action OnEnemyKilled;
 
+        [SerializeField] private int maxHealth = 100;
         private int currentHealth;
 
         private void Awake()
@@ -19,15 +20,14 @@ namespace QuantumRealm.Enemy
             currentHealth -= damage;
             if (currentHealth <= 0)
             {
-                if (destroyOnDeath)
-                {
-                    Destroy(gameObject);
-                }
-                else
-                {
-                    currentHealth = 0;
-                }
+                Die();
             }
+        }
+
+        private void Die()
+        {
+            OnEnemyKilled?.Invoke();
+            Destroy(gameObject);
         }
     }
 }
